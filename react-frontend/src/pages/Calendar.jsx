@@ -4,11 +4,12 @@ import { AppContext } from '../context/AppContext';
 import { FaChevronLeft, FaChevronRight, FaCalendarAlt, FaPlane, FaBriefcaseMedical, FaUserAlt, FaInfoCircle } from 'react-icons/fa';
 
 const Calendar = () => {
-  const { leaves, employees } = useContext(AppContext);
+  const { leaves, employees, user } = useContext(AppContext);
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
+  const isAdmin = user?.role === 'ADMIN';
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -73,24 +74,39 @@ const Calendar = () => {
   // Check if a date has approved leaves
   const getLeavesForDate = (date) => {
     const dStr = date.toISOString().split('T')[0];
-    return leaves.filter(l => {
-      if ((l.status || '').toUpperCase() !== 'APPROVED') return false;
-      const start = new Date(l.startDate).toISOString().split('T')[0];
-      const end = new Date(l.endDate).toISOString().split('T')[0];
-      return dStr >= start && dStr <= end;
-    });
+    return leaves
+      .filter(l => {
+        if ((l.status || '').toUpperCase() !== 'APPROVED') return false;
+        const start = new Date(l.startDate).toISOString().split('T')[0];
+        const end = new Date(l.endDate).toISOString().split('T')[0];
+        return dStr >= start && dStr <= end;
+      })
+      .map(l => {
+        const displayType = isAdmin ? l.type : 'Leave';
+        return { ...l, displayType };
+      });
   };
 
   // Map Leave Type to Icon and Color
   const getLeaveIcon = (type) => {
+    if (!isAdmin) {
+      return <FaCalendarAlt size="10" style={{ color: '#a78bfa' }} />;
+    }
     const t = (type || '').toLowerCase();
-    if (t.includes('sick') || t.includes('medical')) return <FaBriefcaseMedical size="10" className="text-danger" />;
+    if (t.includes('sick') || t.includes('medical') || t.includes('office')) return <FaBriefcaseMedical size="10" className="text-danger" />;
     return <FaPlane size="10" className="text-primary" />;
   };
 
   const getLeavePillStyle = (type) => {
+    if (!isAdmin) {
+      return {
+        background: 'rgba(139, 92, 246, 0.12)',
+        borderLeft: '3px solid #8b5cf6',
+        color: '#a78bfa'
+      };
+    }
     const t = (type || '').toLowerCase();
-    if (t.includes('sick') || t.includes('medical')) {
+    if (t.includes('sick') || t.includes('medical') || t.includes('office')) {
       return {
         background: 'rgba(239, 68, 68, 0.12)',
         borderLeft: '3px solid #ef4444',
@@ -188,12 +204,12 @@ const Calendar = () => {
                                   style={{
                                     fontSize: '0.72rem',
                                     fontWeight: '600',
-                                    ...getLeavePillStyle(leave.type),
+                                    ...getLeavePillStyle(leave.displayType),
                                     cursor: 'pointer'
                                   }}
-                                  title={`${leave.employeeName || getEmployeeName(leave.employeeId)}: ${leave.startDate} to ${leave.endDate} (${leave.type})`}
+                                  title={`${leave.employeeName || getEmployeeName(leave.employeeId)}: ${leave.startDate} to ${leave.endDate} (${leave.displayType})`}
                                 >
-                                  {getLeaveIcon(leave.type)}
+                                  {getLeaveIcon(leave.displayType)}
                                   <span className="text-truncate">{leave.employeeName || getEmployeeName(leave.employeeId)}</span>
                                 </div>
                               ))}
